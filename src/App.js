@@ -33,8 +33,8 @@ const experimentData = [
 
 export default function ExperimentApp() {
   const [group, setGroup] = useState(null);
+  const [phase, setPhase] = useState('selection'); 
   const [currentTask, setCurrentTask] = useState(0);
-  const [phase, setPhase] = useState('initial');
   const [results, setResults] = useState([]);
   const [inputText, setInputText] = useState('');
   const [timer, setTimer] = useState(0);
@@ -47,7 +47,19 @@ export default function ExperimentApp() {
   }
 }, []);
 
-  const startExperiment = (g) => { setGroup(g); setPhase('initial'); };
+  // Auto-detect group from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlGroup = params.get('group')?.toUpperCase();
+    if (urlGroup === 'A' || urlGroup === 'B') {
+      setGroup(urlGroup);
+      setPhase('consent'); 
+    }
+  }, []);
+
+  const handleConsent = () => {
+    setPhase('initial'); 
+  };
 
   const goToUpdate = () => {
     setPhase('update');
@@ -89,43 +101,65 @@ export default function ExperimentApp() {
     }
   };
 
-  // --- STYLING OBJECTS ---
-  const cardStyle = {
-    background: 'white', padding: '30px', borderRadius: '16px',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.05)', border: '1px solid #eaeaea',
-    transition: 'all 0.3s ease'
-  };
-
-  if (!group) {
+  // SCREEN: Selection
+  if (phase === 'selection' && !group) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#f8f9fa', fontFamily: 'Inter, system-ui' }}>
-        <h1 style={{ color: '#1a1a1a', marginBottom: '10px' }}>Cognitive Flexibility Study</h1>
-        <p style={{ color: '#666', marginBottom: '30px' }}>Select your assigned group to begin the assessment</p>
-        <div style={{ display: 'flex', gap: '20px' }}>
-          <button onClick={() => startExperiment('A')} style={startBtnStyle}>Group A</button>
-          <button onClick={() => startExperiment('B')} style={startBtnStyle}>Group B</button>
+      <div style={fullPageCenter}>
+        <div style={cardStyle}>
+          <h1 style={{ color: '#1a1a1a', marginBottom: '10px' }}>Cognitive Flexibility Study</h1>
+          <p style={{ color: '#666', marginBottom: '30px' }}>Select your assigned group to begin the assessment</p>
+          <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+            <button onClick={() => { setGroup('A'); setPhase('consent'); }} style={startBtnStyle}>Group A</button>
+            <button onClick={() => { setGroup('B'); setPhase('consent'); }} style={startBtnStyle}>Group B</button>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (phase === 'finished') {
+  // SCREEN: Consent
+  if (phase === 'consent') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', textAlign: 'center', fontFamily: 'Inter, sans-serif' }}>
-        <div style={{ fontSize: '60px', marginBottom: '20px' }}>✅</div>
-        <h1 style={{ color: '#27ae60' }}>Participation Recorded</h1>
-        <p style={{ color: '#666', maxWidth: '400px' }}>Thank you! Your data has been securely synced to our research database. You may now close this tab.</p>
+      <div style={fullPageCenter}>
+        <div style={{ ...cardStyle, maxWidth: '600px', textAlign: 'left' }}>
+          <h2 style={{ borderBottom: '2px solid #3498db', paddingBottom: '10px' }}>Instructions & Consent</h2>
+          <div style={{ margin: '20px 0', fontSize: '15px', lineHeight: '1.6', color: '#444' }}>
+            <strong>How it works:</strong>
+            <ul style={{ paddingLeft: '20px' }}>
+              <li>You will face 4 cognitive tasks.</li>
+              <li>Each task has an <strong>Initial Scenario</strong> and an <strong>Update</strong>.</li>
+              <li>Once you click "Proceed to Challenge", a timer will start.</li>
+              <li>Please provide your answer as accurately and quickly as possible.</li>
+            </ul>
+            <strong>Consent:</strong>
+            <p>By clicking the button below, you agree that your participation is voluntary and anonymous.</p>
+          </div>
+          <button onClick={handleConsent} style={mainBtnStyle}>I Consent - Start Experiment</button>
+        </div>
       </div>
     );
   }
 
+  // SCREEN: Finished
+  if (phase === 'finished') {
+    return (
+      <div style={fullPageCenter}>
+        <div style={cardStyle}>
+          <div style={{ fontSize: '60px', marginBottom: '20px' }}>✅</div>
+          <h1 style={{ color: '#27ae60' }}>Participation Recorded</h1>
+          <p style={{ color: '#666' }}>Thank you! Your data has been securely synced. You may now close this tab.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // SCREEN: Tasks
   const task = experimentData[currentTask];
   const progress = ((currentTask + 1) / 4) * 100;
 
   return (
     <div style={{ backgroundColor: '#fdfdfd', minHeight: '100vh', fontFamily: 'Inter, system-ui', padding: '40px 20px' }}>
       <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-        {/* Progress Bar */}
         <div style={{ height: '6px', background: '#eee', borderRadius: '10px', marginBottom: '40px', overflow: 'hidden' }}>
           <div style={{ width: `${progress}%`, height: '100%', background: '#3498db', transition: 'width 0.5s ease' }} />
         </div>
@@ -134,10 +168,10 @@ export default function ExperimentApp() {
           <span style={{ textTransform: 'uppercase', fontSize: '12px', fontWeight: 'bold', color: '#3498db', letterSpacing: '1px' }}>
             Task {currentTask + 1} of 4 • {task.title}
           </span>
-          <p style={{ fontSize: '18px', lineHeight: '1.6', color: '#2c3e50', marginTop: '15px' }}>{task.initialQ}</p>
+          <p style={{ fontSize: '18px', lineHeight: '1.6', color: '#2c3e50', marginTop: '15px', textAlign: 'left' }}>{task.initialQ}</p>
           
           {group === 'A' && (
-            <div style={{ marginTop: '20px', background: '#f0f7ff', padding: '20px', borderRadius: '12px', border: '1px dashed #3498db' }}>
+            <div style={{ marginTop: '20px', background: '#f0f7ff', padding: '20px', borderRadius: '12px', border: '1px dashed #3498db', textAlign: 'left' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', color: '#3498db' }}>
                 <span style={{ fontSize: '18px' }}>🤖</span> <strong>AI Logic Sequence:</strong>
               </div>
@@ -153,14 +187,14 @@ export default function ExperimentApp() {
         </div>
 
         {phase === 'update' && (
-          <div style={{ marginTop: '20px', animation: 'fadeIn 0.5s ease' }}>
-            <div style={{ ...cardStyle, background: '#fff9f4', borderColor: '#ff922b' }}>
+          <div style={{ marginTop: '20px' }}>
+            <div style={{ ...cardStyle, background: '#fff9f4', borderColor: '#ff922b', textAlign: 'left' }}>
               <p style={{ fontSize: '18px', fontWeight: '600', color: '#d9480f' }}>{task.updateQ}</p>
               <textarea 
-                style={{ width: '100%', height: '100px', marginTop: '15px', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '16px', outline: 'none', fontFamily: 'inherit' }} 
+                style={{ width: '100%', height: '100px', marginTop: '15px', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }} 
                 value={inputText} 
                 onChange={(e) => setInputText(e.target.value)} 
-                placeholder="Enter your response based on the update..."
+                placeholder="Enter your response..."
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
                 <div style={{ color: '#ff922b', fontSize: '14px', fontWeight: '600' }}>⏱ Latency: {timer}s</div>
@@ -174,7 +208,17 @@ export default function ExperimentApp() {
   );
 }
 
-// --- BUTTON STYLES ---
-const startBtnStyle = { padding: '15px 40px', cursor: 'pointer', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', transition: 'transform 0.2s' };
+// --- STYLES (Declared once, outside function) ---
+const fullPageCenter = {
+  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
+  minHeight: '100vh', backgroundColor: '#f8f9fa', fontFamily: 'Inter, system-ui', padding: '20px'
+};
+
+const cardStyle = {
+  background: 'white', padding: '40px', borderRadius: '16px',
+  boxShadow: '0 10px 25px rgba(0,0,0,0.05)', border: '1px solid #eaeaea', width: '100%', boxSizing: 'border-box'
+};
+
+const startBtnStyle = { padding: '15px 40px', cursor: 'pointer', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold' };
 const mainBtnStyle = { width: '100%', marginTop: '25px', padding: '15px', cursor: 'pointer', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold' };
 const submitBtnStyle = { padding: '12px 30px', cursor: 'pointer', background: '#27ae60', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold' };
