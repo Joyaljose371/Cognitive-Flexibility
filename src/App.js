@@ -39,6 +39,13 @@ export default function ExperimentApp() {
   const [inputText, setInputText] = useState('');
   const [timer, setTimer] = useState(0);
   const timerRef = useRef(null);
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const urlGroup = params.get('group');
+  if (urlGroup === 'A' || urlGroup === 'B') {
+    setGroup(urlGroup);
+  }
+}, []);
 
   const startExperiment = (g) => { setGroup(g); setPhase('initial'); };
 
