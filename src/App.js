@@ -3,16 +3,24 @@ import React, { useState, useEffect, useRef } from 'react';
 const experimentData = [
   {
     id: 1,
-    title: "Numerical Reasoning",
-    initialQ: "A used book costs ₹100, which includes a 10% tax. What is the base price before tax?",
-    aiStepByStep: ["Total (₹100) = Base (100%) + Tax (10%).", "Ratio: 110% = 100, so Base = 100 / 1.10.", "Result: ₹90.91"],
-    updateQ: "SITUATION UPDATE: A 10% student discount is applied to the BASE price (₹90.91) first, then the 10% tax is added back. What is the final price?"
+    title: "Movement Logic",
+    initialQ: "A train travels at a constant speed of 60 km/h. How many minutes does it take to travel 10 kilometers?",
+    aiStepByStep: [
+      "💡 Hint: Convert speed to minutes. 60 km/h means the train covers 1 km every 1 minute.",
+      "🤖 Logic: To cover 10 km at a rate of 1 km per minute, it takes exactly 10 minutes.",
+      "Result: 10 minutes."
+    ],
+    updateQ: "SITUATION UPDATE: The train must now slow down to 30 km/h for the last 5 kilometers of that 10 km trip. Recalculate the total time for the full 10 km."
   },
   {
     id: 2,
     title: "Perspective Switching",
     initialQ: "The University is using AI cameras to track 'Study Habits' to improve library efficiency. Provide 3 keywords that justify this from the University's perspective.",
-    aiStepByStep: ["Optimization", "Data-driven", "Efficiency"],
+    aiStepByStep: [
+      "💡 Hint: Think about how an administrator uses data to manage space, costs, and resources.",
+      "🤖 Logic: Use terms like 'Resource Optimization' (better seating), 'Operational Efficiency' (staffing), and 'Analytics' (usage trends).",
+      "Keywords: Optimization, Data-driven, Efficiency"
+    ],
     updateQ: "UPDATE: Due to privacy concerns, cameras are now only for 'Security' (theft prevention). Which choice best represents a Student's balanced view?",
     options: [
       "I support theft prevention but demand privacy protection.",
@@ -24,20 +32,29 @@ const experimentData = [
   {
     id: 3,
     title: "Logic Adaptation",
-    initialQ: "Solve the fox–chicken–grain river crossing problem. Find the minimum crossings.",
-    aiStepByStep: ["Chicken first (1), return (2).", "Grain across (3), Chicken back (4).", "Fox across (5), return (6).", "Chicken across (7). Result: 7."],
+    initialQ: "A farmer must move a fox, a chicken, and a bag of grain across a river. The boat only carries the farmer and ONE item. Alone: Fox eats Chicken, or Chicken eats Grain. What is the minimum crossings?",
+    aiStepByStep: [
+      "💡 Hint: You must take the Chicken first to prevent any eating, then use 'return trips' to swap items safely.",
+      "🤖 Logic: 1. Chicken over, 2. Return empty, 3. Fox over, 4. Chicken back (crucial!), 5. Grain over, 6. Return empty, 7. Chicken over.",
+      "Result: 7 crossings."
+    ],
     updateQ: "SITUATION UPDATE: A raft is found that allows the grain to be left floating separately. Recalculate minimum crossings."
   },
   {
     id: 4,
     title: "Financial Pivot",
-    initialQ: "₹1,00,000 moved to a 0% wallet from a 4% bank account. Calculate the annual opportunity cost.",
-    aiStepByStep: ["Interest: 1,00,000 * 4% = 4,000.", "Bank (4,000) vs Wallet (0).", "Result: ₹4,000 loss."],
-    updateQ: "SITUATION UPDATE: The wallet now offers ₹500 cashback per ₹10,000 held. Which is more profitable: Bank (4% interest) or Wallet (Cashback)?"
+    initialQ: "₹1,00,000 is moved from a bank account earning 4% annual interest to a digital wallet earning 0%. How much potential profit is lost in one year by making this move?",
+    aiStepByStep: [
+      "💡 Hint: This 'lost profit' is the money you would have earned if you left the funds in the bank instead of the wallet.",
+      "🤖 Logic: Calculate 4% of 1,00,000. The bank would have paid you 4,000, while the wallet pays 0.",
+      "Result: ₹4,000 lost profit."
+    ],
+    updateQ: "SITUATION UPDATE: The digital wallet now offers a special cashback of ₹500 for every ₹10,000 held in it. Which is now more profitable: the Bank (4% interest) or the Wallet (Cashback)?"
   }
 ];
 
 export default function ExperimentApp() {
+  const [step, setStep] = useState('landing');
   const [group, setGroup] = useState(null);
   const [currentTask, setCurrentTask] = useState(0);
   const [phase, setPhase] = useState('initial');
@@ -48,30 +65,22 @@ export default function ExperimentApp() {
   const [showAnswer, setShowAnswer] = useState(false);
   const timerRef = useRef(null);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlGroup = params.get('group')?.toUpperCase();
-    if (urlGroup === 'A' || urlGroup === 'B') setGroup(urlGroup);
-  }, []);
-
-  const startExperiment = (g) => { setGroup(g); setPhase('initial'); };
+  const startExperiment = (g) => {
+    setGroup(g);
+    setStep('survey');
+  };
 
   const goToUpdate = () => {
-    let firstPartData = "";
-    if (group === 'A') {
-      if (showHint && showAnswer) firstPartData = "Both Hint & Answer";
-      else if (showAnswer) firstPartData = "AI Answer Only";
-      else if (showHint) firstPartData = "AI Hint Only";
-    } else {
-      firstPartData = `Manual: ${inputText}`;
-    }
-    
-    setResults(prev => [...prev, firstPartData]);
+    let mode = group === 'A'
+      ? (showHint && showAnswer ? "Both" : showAnswer ? "Logic" : "Hint")
+      : `Manual: ${inputText.replace(/\|/g, ';')}`;
+
+    setResults(prev => [...prev, { mode }]);
     setPhase('update');
     setInputText('');
     setShowHint(false);
     setShowAnswer(false);
-    
+
     setTimer(0);
     const start = Date.now();
     timerRef.current = setInterval(() => {
@@ -79,57 +88,127 @@ export default function ExperimentApp() {
     }, 100);
   };
 
-  const handleSubmit = (choiceValue = null) => {
+  const handleUpdateSubmit = (choiceValue = null) => {
     clearInterval(timerRef.current);
-    const finalAnswer = choiceValue || inputText;
-    const summary = `${timer}s | ${finalAnswer}`;
-    const updatedResults = [...results, summary];
-    setResults(updatedResults);
+    if (choiceValue) setInputText(choiceValue);
+    setPhase('confidence');
+  };
+
+  const handleConfidenceSubmit = (confScore) => {
+    const currentResults = [...results];
+    const currentIndex = currentResults.length - 1;
+
+    currentResults[currentIndex] = {
+      ...currentResults[currentIndex],
+      time: timer,
+      answer: (inputText || "").replace(/\|/g, ';'),
+      confidence: confScore
+    };
+
+    setResults(currentResults);
     setInputText('');
 
     if (currentTask < experimentData.length - 1) {
       setCurrentTask(currentTask + 1);
       setPhase('initial');
     } else {
-      sendToGoogle(updatedResults);
-      setPhase('finished');
+      sendToGoogle(currentResults);
+      setStep('finished');
     }
   };
 
-  const sendToGoogle = (finalResults) => {
+  const sendToGoogle = (finalData) => {
     const formID = "1FAIpQLSdxHo29TnDPuTUW-_Ah8JJp10Gux2a5Tp_uFuzf74q3jNBRNw";
-    const fields = { id: "entry.525021555", t1: "entry.651143595", t2: "entry.312742935", t3: "entry.719538924", t4: "entry.1641818878" };
-    const pID = `Grp-${group}-${Math.floor(Math.random() * 10000)}`;
-    
-    const task1 = `${finalResults[0]} || ${finalResults[1]}`;
-    const task2 = `${finalResults[2]} || ${finalResults[3]}`;
-    const task3 = `${finalResults[4]} || ${finalResults[5]}`;
-    const task4 = `${finalResults[6]} || ${finalResults[7]}`;
+    const fields = {
+      pID: "entry.525021555",
+      t1: { m: "entry.651143595", t: "entry.312742935", a: "entry.719538924", c: "entry.1641818878" },
+      t2: { m: "entry.963073410", t: "entry.772162158", a: "entry.1009011268", c: "entry.1726924177" },
+      t3: { m: "entry.1995615539", t: "entry.1409764106", a: "entry.1004505213", c: "entry.731737617" },
+      t4: { m: "entry.1026101836", t: "entry.71733623", a: "entry.767400298", c: "entry.1169791376" }
+    };
 
-    const url = `https://docs.google.com/forms/d/e/${formID}/formResponse?${fields.id}=${pID}&${fields.t1}=${encodeURIComponent(task1)}&${fields.t2}=${encodeURIComponent(task2)}&${fields.t3}=${encodeURIComponent(task3)}&${fields.t4}=${encodeURIComponent(task4)}&submit=Submit`;
-    
+    const pIDValue = `Grp-${group}-${Math.floor(Math.random() * 10000)}`;
+    let url = `https://docs.google.com/forms/d/e/${formID}/formResponse?${fields.pID}=${pIDValue}`;
+
+    finalData.forEach((task, i) => {
+      const key = `t${i + 1}`;
+      url += `&${fields[key].m}=${encodeURIComponent(task.mode)}` +
+        `&${fields[key].t}=${encodeURIComponent(task.time)}` +
+        `&${fields[key].a}=${encodeURIComponent(task.answer)}` +
+        `&${fields[key].c}=${encodeURIComponent(task.confidence)}`;
+    });
+
     const iframe = document.createElement('iframe');
-    iframe.src = url; iframe.style.display = 'none';
+    iframe.src = url + "&submit=Submit";
+    iframe.style.display = 'none';
     document.body.appendChild(iframe);
   };
 
-  if (!group) {
+  if (step === 'landing') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#f8f9fa', fontFamily: 'Inter, system-ui' }}>
-        <h1 style={{ color: '#1a1a1a', marginBottom: '10px' }}>Cognitive Flexibility Study</h1>
-        <div style={{ display: 'flex', gap: '20px' }}>
-          <button onClick={() => startExperiment('A')} style={startBtnStyle}>Group A</button>
-          <button onClick={() => startExperiment('B')} style={startBtnStyle}>Group B</button>
+      <div style={layoutWrapper}>
+        <div style={{ ...cardStyle, textAlign: 'center' }}>
+          <h1 style={{ color: '#1a1a1a', marginBottom: '20px' }}>Cognitive Flexibility Study</h1>
+          <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+            <button onClick={() => startExperiment('A')} style={startBtnStyle}>Group A</button>
+            <button onClick={() => startExperiment('B')} style={{ ...startBtnStyle, background: '#34495e' }}>Group B</button>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (phase === 'finished') {
+  if (step === 'survey') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', textAlign: 'center', fontFamily: 'Inter, sans-serif' }}>
-        <div style={{ fontSize: '60px', marginBottom: '20px' }}>✅</div>
-        <h1>Participation Recorded</h1>
+      <div style={layoutWrapper}>
+        <div style={cardStyle}>
+          <h2 style={{ marginTop: 0, color: '#2c3e50' }}>Pre-Task Assessment</h2>
+          <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
+            Please complete the AAIUS and Cognitive Flexibility scales below.
+            <strong> After you click "Submit" in the form</strong>, click the button below to continue.
+          </p>
+          <div style={{ width: '100%', height: '600px', overflow: 'hidden', borderRadius: '8px', border: '1px solid #eee' }}>
+            <iframe
+              src="https://docs.google.com/forms/d/e/1FAIpQLSfy5CIWCy5XN53CXhj3Rf64XaHmcFCe9ddeZKP5OST_GtNgIg/viewform?usp=header"
+              width="100%" height="600" frameBorder="0" marginHeight="0" marginWidth="0"
+            >Loading…</iframe>
+          </div>
+          <button onClick={() => setStep('consent')} style={mainBtnStyle}>
+            I have submitted the form & am ready to start →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'consent') {
+    return (
+      <div style={layoutWrapper}>
+        <div style={cardStyle}>
+          <h2 style={{ marginTop: 0 }}>Informed Consent Form</h2>
+          <div style={consentScrollBox}>
+            <p><strong>Project Title:</strong> AI Reliance & Cognitive Adaptation.</p>
+            <hr />
+            <p><strong>1. Purpose:</strong> Study investigating digital tools and problem-solving.</p>
+            <p><strong>2. Procedures:</strong> 4 logic tasks with rule changes. ~10 mins.</p>
+            <p><strong>3. Privacy:</strong> Data is fully anonymized.</p>
+            <p><strong>4. Voluntary:</strong> You may exit at any time.</p>
+            <hr />
+            <p><em>By clicking below, you voluntarily agree to participate.</em></p>
+          </div>
+          <button onClick={() => setStep('experiment')} style={mainBtnStyle}>I Consent & Start</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'finished') {
+    return (
+      <div style={layoutWrapper}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '60px', marginBottom: '20px' }}>✅</div>
+          <h1>Participation Recorded</h1>
+        </div>
       </div>
     );
   }
@@ -137,89 +216,124 @@ export default function ExperimentApp() {
   const task = experimentData[currentTask];
   const progress = ((currentTask + 1) / 4) * 100;
 
-  // Validation Logic
-  const canProceedInitial = group === 'A' ? (showHint || showAnswer) : inputText.trim().length > 0;
-  const canSubmitUpdate = task.options ? true : inputText.trim().length > 0;
-
   return (
-    <div style={{ backgroundColor: '#fdfdfd', minHeight: '100vh', fontFamily: 'Inter, system-ui', padding: '40px 20px' }}>
-      <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-        <div style={{ height: '6px', background: '#eee', borderRadius: '10px', marginBottom: '40px', overflow: 'hidden' }}>
-          <div style={{ width: `${progress}%`, height: '100%', background: '#3498db', transition: 'width 0.5s ease' }} />
-        </div>
-
+    <div style={layoutWrapper}>
+      <div style={{ width: '100%', maxWidth: '700px' }}>
+        <div style={progressContainer}><div style={{ ...progressBar, width: `${progress}%` }} /></div>
         <div style={cardStyle}>
-          <span style={{ textTransform: 'uppercase', fontSize: '12px', fontWeight: 'bold', color: '#3498db', letterSpacing: '1px' }}>
-            Task {currentTask + 1} of 4 • {task.title}
-          </span>
-          <p style={{ fontSize: '18px', lineHeight: '1.6', color: '#2c3e50', marginTop: '15px' }}>{task.initialQ}</p>
-          
-          {group === 'A' && phase === 'initial' && (
-            <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={() => setShowHint(true)} style={{...smallBtnStyle, background: '#e7f5ff', color: '#1971c2'}}>💡 Show AI Hint</button>
-                <button onClick={() => setShowAnswer(true)} style={{...smallBtnStyle, background: '#f3f0ff', color: '#6741d9'}}>🤖 Show AI Answer</button>
-              </div>
-              {showHint && <div style={aiBoxStyle}><strong>💡 Hint:</strong> {task.aiStepByStep[0]}</div>}
-              {showAnswer && (
-                <div style={{...aiBoxStyle, borderColor: '#6741d9', background: '#f8f7ff'}}>
-                  <strong>🤖 AI Answer:</strong>
-                  <ul style={{ margin: '5px 0 0 20px' }}>{task.aiStepByStep.map((s, i) => <li key={i}>{s}</li>)}</ul>
-                </div>
-              )}
-            </div>
-          )}
+          <span style={taskLabel}>Task {currentTask + 1} of 4 • {task.title}</span>
 
           {phase === 'initial' && (
-            <div style={{ marginTop: '20px' }}>
-              {group === 'B' && <textarea style={textAreaStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Provide your response..." />}
-              <button 
-                onClick={goToUpdate} 
-                disabled={!canProceedInitial}
-                style={{...mainBtnStyle, opacity: canProceedInitial ? 1 : 0.5, cursor: canProceedInitial ? 'pointer' : 'not-allowed'}}
-              >
-                {group === 'B' ? "Submit & See Update" : "Proceed to Challenge"}
-              </button>
-            </div>
-          )}
-        </div>
+            <div style={{ marginTop: '15px' }}>
+              <p style={questionText}>{task.initialQ}</p>
+              {group === 'A' ? (
+                <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={() => setShowHint(true)} style={smallBtnStyle}>💡 Show AI Hint</button>
+                    <button onClick={() => setShowAnswer(true)} style={{ ...smallBtnStyle, background: '#f3f0ff', color: '#6741d9' }}>🤖 Show AI Answer</button>
+                  </div>
 
-        {phase === 'update' && (
-          <div style={{ marginTop: '20px', animation: 'fadeIn 0.5s ease' }}>
-            <div style={{ ...cardStyle, background: '#fff9f4', borderColor: '#ff922b' }}>
-              <p style={{ fontSize: '18px', fontWeight: '600', color: '#d9480f' }}>{task.updateQ}</p>
-              {task.options ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
-                  {task.options.map((opt, i) => <button key={i} onClick={() => handleSubmit(opt)} style={optionBtnStyle}>{opt}</button>)}
+                  {showHint && (
+                    <div style={aiBoxStyle}>
+                      <strong>💡 AI Hint:</strong>
+                      <p style={{ margin: '5px 0 0 0' }}>{task.aiStepByStep[0]}</p>
+                    </div>
+                  )}
+
+                  {showAnswer && (
+                    <div style={{ ...aiBoxStyle, borderColor: '#6741d9', background: '#f8f7ff' }}>
+                      <strong>🤖 AI Answer & Logic:</strong>
+                      <div style={{ margin: '5px 0 0 0' }}>
+                        {task.aiStepByStep.slice(1).map((s, i) => (
+                          <p key={i} style={{ marginBottom: '5px' }}>{s}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <button onClick={goToUpdate} disabled={!(showHint || showAnswer)} style={mainBtnStyle}>Proceed to Challenge</button>
                 </div>
               ) : (
                 <>
-                  <textarea style={textAreaStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Your update response..." />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
-                    <div style={{ color: '#ff922b', fontSize: '14px', fontWeight: '600' }}>⏱ Latency: {timer}s</div>
-                    <button 
-                        onClick={() => handleSubmit()} 
-                        disabled={!canSubmitUpdate}
-                        style={{...submitBtnStyle, opacity: canSubmitUpdate ? 1 : 0.5, cursor: canSubmitUpdate ? 'pointer' : 'not-allowed'}}
-                    >
-                        Submit Response
-                    </button>
-                  </div>
+                  <textarea style={textAreaStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Provide your response..." />
+                  <button onClick={goToUpdate} disabled={!inputText.trim()} style={mainBtnStyle}>Submit & See Update</button>
                 </>
               )}
             </div>
-          </div>
-        )}
+          )}
+
+          {phase === 'update' && (
+            <div style={{ marginTop: '20px' }}>
+              <div style={{ ...cardStyle, background: '#fff9f4', borderColor: '#ff922b', boxShadow: 'none' }}>
+                <p style={{ fontSize: '18px', fontWeight: '600', color: '#d9480f' }}>{task.updateQ}</p>
+                {task.options ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
+                    {task.options.map((opt, i) => <button key={i} onClick={() => handleUpdateSubmit(opt)} style={optionBtnStyle}>{opt}</button>)}
+                  </div>
+                ) : (
+                  <>
+                    <textarea style={textAreaStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Your update response..." />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '15px', alignItems: 'center' }}>
+                      <div style={{ color: '#ff922b', fontSize: '14px', fontWeight: '600' }}>⏱ Latency: {timer}s</div>
+                      <button onClick={() => handleUpdateSubmit()} disabled={!inputText.trim()} style={submitBtnStyle}>Submit Response</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {phase === 'confidence' && (
+            <div style={{ textAlign: 'center', marginTop: '25px' }}>
+              <h3 style={{ fontSize: '18px', color: '#2c3e50', marginBottom: '5px' }}>Confidence Rating</h3>
+              <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
+                How certain are you that your answer to the <strong>Situation Update</strong> is correct?
+                (1 = Not at all, 5 = Completely certain)
+              </p>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '15px' }}>
+                {[1, 2, 3, 4, 5].map(n => <button key={n} onClick={() => handleConfidenceSubmit(n)} style={confBtn}>{n}</button>)}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-const cardStyle = { background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', border: '1px solid #eaeaea' };
+const layoutWrapper = {
+  backgroundColor: '#fdfdfd',
+  minHeight: '100vh',
+  fontFamily: 'Inter, system-ui',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: '20px',
+  boxSizing: 'border-box'
+};
+
+const cardStyle = {
+  background: 'white',
+  padding: '30px',
+  borderRadius: '16px',
+  boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
+  border: '1px solid #eaeaea',
+  width: '100%',
+  maxWidth: '700px',
+  boxSizing: 'border-box'
+};
+
+const taskLabel = { textTransform: 'uppercase', fontSize: '12px', fontWeight: 'bold', color: '#3498db', letterSpacing: '1px' };
+const questionText = { fontSize: '18px', lineHeight: '1.6', color: '#2c3e50', marginTop: '15px' };
+const startBtnStyle = { padding: '15px 40px', cursor: 'pointer', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold' };
+const mainBtnStyle = { width: '100%', marginTop: '25px', padding: '15px', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' };
+const smallBtnStyle = { flex: 1, padding: '10px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', background: '#e7f5ff', color: '#1971c2' };
 const aiBoxStyle = { marginTop: '15px', background: '#f0f7ff', padding: '15px', borderRadius: '12px', border: '1px dashed #3498db', fontSize: '14px' };
 const textAreaStyle = { width: '100%', height: '100px', marginTop: '15px', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '16px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
-const startBtnStyle = { padding: '15px 40px', cursor: 'pointer', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold' };
-const mainBtnStyle = { width: '100%', marginTop: '25px', padding: '15px', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', transition: '0.3s' };
-const submitBtnStyle = { padding: '12px 30px', background: '#27ae60', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', transition: '0.3s' };
+const progressContainer = { height: '6px', background: '#eee', borderRadius: '10px', marginBottom: '40px', overflow: 'hidden', width: '100%' };
+const progressBar = { height: '100%', background: '#3498db', transition: 'width 0.5s ease' };
+const submitBtnStyle = { padding: '12px 30px', background: '#27ae60', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold' };
+const confBtn = { width: '50px', height: '50px', borderRadius: '50%', border: '2px solid #3498db', cursor: 'pointer', background: 'white', color: '#3498db', fontWeight: 'bold', fontSize: '16px' };
 const optionBtnStyle = { padding: '15px', textAlign: 'left', background: 'white', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', fontSize: '15px' };
-const smallBtnStyle = { flex: 1, padding: '10px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' };
+const consentScrollBox = { height: '200px', overflowY: 'auto', background: '#fcfcfc', padding: '15px', border: '1px solid #eee', borderRadius: '8px', fontSize: '14px', margin: '15px 0', lineHeight: '1.5' };
