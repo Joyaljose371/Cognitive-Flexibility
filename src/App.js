@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 
 const experimentData = [
   {
@@ -65,6 +65,9 @@ export default function ExperimentApp() {
   const [showAnswer, setShowAnswer] = useState(false);
   const timerRef = useRef(null);
 
+  // Generates the ID once and remembers it for the whole session
+  const pIDValue = useMemo(() => `User-${Math.floor(Math.random() * 90000) + 10000}`, []);
+
   const startExperiment = (g) => {
     setGroup(g);
     setStep('survey');
@@ -127,18 +130,20 @@ export default function ExperimentApp() {
       t4: { m: "entry.1026101836", t: "entry.71733623", a: "entry.767400298", c: "entry.1169791376" }
     };
 
-    const pIDValue = `Grp-${group}-${Math.floor(Math.random() * 10000)}`;
-    let url = `https://docs.google.com/forms/d/e/${formID}/formResponse?${fields.pID}=${pIDValue}`;
+    // Use the persistent pID with the group prefix
+    const finalID = `Grp-${group}-${pIDValue}`;
+    let url = `https://docs.google.com/forms/d/e/${formID}/formResponse?${fields.pID}=${finalID}`;
 
     finalData.forEach((task, i) => {
       const key = `t${i + 1}`;
       url += `&${fields[key].m}=${encodeURIComponent(task.mode)}` +
-        `&${fields[key].t}=${encodeURIComponent(task.time)}` +
-        `&${fields[key].a}=${encodeURIComponent(task.answer)}` +
-        `&${fields[key].c}=${encodeURIComponent(task.confidence)}`;
+             `&${fields[key].t}=${encodeURIComponent(task.time)}` +
+             `&${fields[key].a}=${encodeURIComponent(task.answer)}` +
+             `&${fields[key].c}=${encodeURIComponent(task.confidence)}`;
     });
 
     const iframe = document.createElement('iframe');
+    iframe.title = "Data Submit";
     iframe.src = url + "&submit=Submit";
     iframe.style.display = 'none';
     document.body.appendChild(iframe);
@@ -159,17 +164,21 @@ export default function ExperimentApp() {
   }
 
   if (step === 'survey') {
+    // Construct the Pre-filled URL for your survey form
+    const surveyUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfy5CIWCy5XN53CXhj3Rf64XaHmcFCe9ddeZKP5OST_GtNgIg/viewform?usp=pp_url&entry.1589615168=${pIDValue}&embedded=true`;
+
     return (
       <div style={layoutWrapper}>
         <div style={cardStyle}>
           <h2 style={{ marginTop: 0, color: '#2c3e50' }}>Pre-Task Assessment</h2>
           <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
             Please complete the AAIUS and Cognitive Flexibility scales below.
-            <strong> After you click "Submit" in the form</strong>, click the button below to continue.
+            <strong> Your Participant ID ({pIDValue}) has been automatically entered.</strong>
           </p>
           <div style={{ width: '100%', height: '600px', overflow: 'hidden', borderRadius: '8px', border: '1px solid #eee' }}>
             <iframe
-              src="https://docs.google.com/forms/d/e/1FAIpQLSfy5CIWCy5XN53CXhj3Rf64XaHmcFCe9ddeZKP5OST_GtNgIg/viewform?usp=header"
+              title="AAIUS and CF Scales"
+              src={surveyUrl}
               width="100%" height="600" frameBorder="0" marginHeight="0" marginWidth="0"
             >Loading…</iframe>
           </div>
@@ -208,6 +217,7 @@ export default function ExperimentApp() {
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '60px', marginBottom: '20px' }}>✅</div>
           <h1>Participation Recorded</h1>
+          <p>Thank you for your contribution to this study.</p>
         </div>
       </div>
     );
@@ -232,14 +242,12 @@ export default function ExperimentApp() {
                     <button onClick={() => setShowHint(true)} style={smallBtnStyle}>💡 Show AI Hint</button>
                     <button onClick={() => setShowAnswer(true)} style={{ ...smallBtnStyle, background: '#f3f0ff', color: '#6741d9' }}>🤖 Show AI Answer</button>
                   </div>
-
                   {showHint && (
                     <div style={aiBoxStyle}>
                       <strong>💡 AI Hint:</strong>
                       <p style={{ margin: '5px 0 0 0' }}>{task.aiStepByStep[0]}</p>
                     </div>
                   )}
-
                   {showAnswer && (
                     <div style={{ ...aiBoxStyle, borderColor: '#6741d9', background: '#f8f7ff' }}>
                       <strong>🤖 AI Answer & Logic:</strong>
@@ -250,7 +258,6 @@ export default function ExperimentApp() {
                       </div>
                     </div>
                   )}
-
                   <button onClick={goToUpdate} disabled={!(showHint || showAnswer)} style={mainBtnStyle}>Proceed to Challenge</button>
                 </div>
               ) : (
@@ -301,29 +308,8 @@ export default function ExperimentApp() {
   );
 }
 
-const layoutWrapper = {
-  backgroundColor: '#fdfdfd',
-  minHeight: '100vh',
-  fontFamily: 'Inter, system-ui',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: '20px',
-  boxSizing: 'border-box'
-};
-
-const cardStyle = {
-  background: 'white',
-  padding: '30px',
-  borderRadius: '16px',
-  boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
-  border: '1px solid #eaeaea',
-  width: '100%',
-  maxWidth: '700px',
-  boxSizing: 'border-box'
-};
-
+const layoutWrapper = { backgroundColor: '#fdfdfd', minHeight: '100vh', fontFamily: 'Inter, system-ui', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', boxSizing: 'border-box' };
+const cardStyle = { background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', border: '1px solid #eaeaea', width: '100%', maxWidth: '700px', boxSizing: 'border-box' };
 const taskLabel = { textTransform: 'uppercase', fontSize: '12px', fontWeight: 'bold', color: '#3498db', letterSpacing: '1px' };
 const questionText = { fontSize: '18px', lineHeight: '1.6', color: '#2c3e50', marginTop: '15px' };
 const startBtnStyle = { padding: '15px 40px', cursor: 'pointer', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold' };
