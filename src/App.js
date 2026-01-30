@@ -38,7 +38,7 @@ const experimentData = [
       "🤖 Logic: 1. Chicken over, 2. Return empty, 3. Fox over, 4. Chicken back (crucial!), 5. Grain over, 6. Return empty, 7. Chicken over.",
       "Result: 7 crossings."
     ],
-    updateQ: "SITUATION UPDATE: A raft is found that allows the grain to be left floating separately. Recalculate minimum crossings."
+    updateQ: "SITUATION UPDATE: You find a raft to tow the grain behind the boat. The grain no longer counts as your 'one item' limit. You can now carry one animal while also towing the grain. Recalculate the minimum crossings needed."
   },
   {
     id: 4,
@@ -49,7 +49,8 @@ const experimentData = [
       "🤖 Logic: Calculate 4% of 1,00,000. The bank would have paid you 4,000, while the wallet pays 0.",
       "Result: ₹4,000 lost profit."
     ],
-    updateQ: "SITUATION UPDATE: The digital wallet now offers a special cashback of ₹500 for every ₹10,000 held in it. Which is now more profitable: the Bank (4% interest) or the Wallet (Cashback)?"
+    updateQ: "SITUATION UPDATE: The digital wallet now offers a special cashback of ₹500 for every ₹10,000 held in it. Which is now more profitable: the Bank (4% interest) or the Wallet (Cashback)?",
+    options: ["Bank (4% Interest)", "Digital Wallet (Cashback)"]
   }
 ];
 
@@ -65,7 +66,6 @@ export default function ExperimentApp() {
   const [showAnswer, setShowAnswer] = useState(false);
   const timerRef = useRef(null);
 
-  // Generates the ID once and remembers it for the whole session
   const pIDValue = useMemo(() => `User-${Math.floor(Math.random() * 90000) + 10000}`, []);
 
   const startExperiment = (g) => {
@@ -130,7 +130,6 @@ export default function ExperimentApp() {
       t4: { m: "entry.1026101836", t: "entry.71733623", a: "entry.767400298", c: "entry.1169791376" }
     };
 
-    // Use the persistent pID with the group prefix
     const finalID = `Grp-${group}-${pIDValue}`;
     let url = `https://docs.google.com/forms/d/e/${formID}/formResponse?${fields.pID}=${finalID}`;
 
@@ -164,9 +163,7 @@ export default function ExperimentApp() {
   }
 
   if (step === 'survey') {
-    // Construct the Pre-filled URL for your survey form
     const surveyUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfy5CIWCy5XN53CXhj3Rf64XaHmcFCe9ddeZKP5OST_GtNgIg/viewform?usp=pp_url&entry.1589615168=${pIDValue}&embedded=true`;
-
     return (
       <div style={layoutWrapper}>
         <div style={cardStyle}>
@@ -279,7 +276,17 @@ export default function ExperimentApp() {
                   </div>
                 ) : (
                   <>
-                    <textarea style={textAreaStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Your update response..." />
+                    {task.id === 3 ? (
+                      <input 
+                        type="number" 
+                        style={{...textAreaStyle, height: '50px'}} 
+                        value={inputText} 
+                        onChange={(e) => setInputText(e.target.value)} 
+                        placeholder="Enter numeric value..." 
+                      />
+                    ) : (
+                      <textarea style={textAreaStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Your update response..." />
+                    )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '15px', alignItems: 'center' }}>
                       <div style={{ color: '#ff922b', fontSize: '14px', fontWeight: '600' }}>⏱ Latency: {timer}s</div>
                       <button onClick={() => handleUpdateSubmit()} disabled={!inputText.trim()} style={submitBtnStyle}>Submit Response</button>
