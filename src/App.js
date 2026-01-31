@@ -17,8 +17,8 @@ const experimentData = [
     title: "Perspective Switching",
     initialQ: "The University is using AI cameras to track 'Study Habits' to improve library efficiency. Provide 3 keywords that justify this from the University's perspective.",
     aiStepByStep: [
-      "💡 Hint: Think about how an administrator uses data to manage space, costs, and resources.",
-      "🤖 Logic: Use terms like 'Resource Optimization' (better seating), 'Operational Efficiency' (staffing), and 'Analytics' (usage trends).",
+      "💡 Hint: Think about how an administrator uses data to manage space and resources.",
+      "🤖 Logic: Use terms like 'Resource Optimization', 'Operational Efficiency', and 'Analytics'.",
       "Keywords: Optimization, Data-driven, Efficiency"
     ],
     updateQ: "UPDATE: Due to privacy concerns, cameras are now only for 'Security' (theft prevention). Which choice best represents a Student's balanced view?",
@@ -32,21 +32,21 @@ const experimentData = [
   {
     id: 3,
     title: "Logic Adaptation",
-    initialQ: "A farmer must move a fox, a chicken, and a bag of grain across a river. The boat only carries the farmer and ONE item. Alone: Fox eats Chicken, or Chicken eats Grain. What is the minimum crossings?",
+    initialQ: "A farmer must move a fox, a chicken, and a bag of grain across a river. Alone: Fox eats Chicken, or Chicken eats Grain. What is the minimum crossings?",
     aiStepByStep: [
-      "💡 Hint: You must take the Chicken first to prevent any eating, then use 'return trips' to swap items safely.",
-      "🤖 Logic: 1. Chicken over, 2. Return empty, 3. Fox over, 4. Chicken back (crucial!), 5. Grain over, 6. Return empty, 7. Chicken over.",
+      "💡 Hint: You must take the Chicken first to prevent any eating, then use return trips.",
+      "🤖 Logic: 1. Chicken over, 2. Return empty, 3. Fox over, 4. Chicken back, 5. Grain over, 6. Return empty, 7. Chicken over.",
       "Result: 7 crossings."
     ],
-    updateQ: "SITUATION UPDATE: You find a raft to tow the grain behind the boat. The grain no longer counts as your 'one item' limit. You can now carry one animal while also towing the grain. Recalculate the minimum crossings needed."
+    updateQ: "SITUATION UPDATE: You find a raft to tow the grain. The grain no longer counts as your 'one item' limit. You can carry one animal while towing the grain. Recalculate the minimum crossings."
   },
   {
     id: 4,
     title: "Financial Pivot",
-    initialQ: "₹1,00,000 is moved from a bank account earning 4% annual interest to a digital wallet earning 0%. How much potential profit is lost in one year by making this move?",
+    initialQ: "₹1,00,000 is moved from a bank account earning 4% annual interest to a digital wallet earning 0%. How much potential profit is lost in one year?",
     aiStepByStep: [
-      "💡 Hint: This 'lost profit' is the money you would have earned if you left the funds in the bank instead of the wallet.",
-      "🤖 Logic: Calculate 4% of 1,00,000. The bank would have paid you 4,000, while the wallet pays 0.",
+      "💡 Hint: Lost profit is the interest you would have earned in the bank.",
+      "🤖 Logic: 4% of 1,00,000 = ₹4,000. The wallet pays 0 interest.",
       "Result: ₹4,000 lost profit."
     ],
     updateQ: "SITUATION UPDATE: The digital wallet now offers a special cashback of ₹500 for every ₹10,000 held in it. Which is now more profitable: the Bank (4% interest) or the Wallet (Cashback)?",
@@ -61,12 +61,54 @@ export default function ExperimentApp() {
   const [phase, setPhase] = useState('initial');
   const [results, setResults] = useState([]);
   const [inputText, setInputText] = useState('');
+  const [initialAnswer, setInitialAnswer] = useState('');
+  const [keywords, setKeywords] = useState([]); 
   const [timer, setTimer] = useState(0);
   const [showHint, setShowHint] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [relianceScore, setRelianceScore] = useState(0);
   const timerRef = useRef(null);
 
   const pIDValue = useMemo(() => `User-${Math.floor(Math.random() * 90000) + 10000}`, []);
+
+  const handleKeyUp = (e) => {
+    if (currentTask === 1 && (e.key === ' ' || e.key === ',')) {
+      const word = inputText.trim().replace(',', '');
+      if (word.length > 0 && !keywords.includes(word)) {
+        setKeywords([...keywords, word]);
+      }
+      setInputText('');
+    }
+  };
+
+  const sendToGoogle = (finalData) => {
+    const formID = "1FAIpQLSdxHo29TnDPuTUW-_Ah8JJp10Gux2a5Tp_uFuzf74q3jNBRNw";
+    const fields = {
+      pID: "entry.525021555",
+      t1: { m: "entry.651143595", r: "entry.1733576881", t: "entry.312742935", a: "entry.719538924", au: "entry.1097051775", c: "entry.1641818878" },
+      t2: { m: "entry.963073410", r: "entry.984933189", t: "entry.772162158", a: "entry.1009011268", au: "entry.880027627", c: "entry.1726924177" },
+      t3: { m: "entry.1995615539", r: "entry.1503230037", t: "entry.1409764106", a: "entry.1004505213", au: "entry.402887706", c: "entry.731737617" },
+      t4: { m: "entry.1026101836", r: "entry.1390260123", t: "entry.71733623", a: "entry.767400298", au: "entry.50268811", c: "entry.1169791376" }
+    };
+
+    const finalID = `Grp-${group}-${pIDValue}`;
+    let url = `https://docs.google.com/forms/d/e/${formID}/formResponse?${fields.pID}=${finalID}`;
+
+    finalData.forEach((task, i) => {
+      const key = `t${i + 1}`;
+      url += `&${fields[key].m}=${encodeURIComponent(task.mode)}` +
+             `&${fields[key].r}=${encodeURIComponent(task.reliance || 0)}` +
+             `&${fields[key].t}=${encodeURIComponent(task.time)}` +
+             `&${fields[key].a}=${encodeURIComponent(task.initial)}` +
+             `&${fields[key].au}=${encodeURIComponent(task.update)}` +
+             `&${fields[key].c}=${encodeURIComponent(task.confidence)}`;
+    });
+
+    const iframe = document.createElement('iframe');
+    iframe.src = url + "&submit=Submit";
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+  };
 
   const startExperiment = (g) => {
     setGroup(g);
@@ -74,16 +116,17 @@ export default function ExperimentApp() {
   };
 
   const goToUpdate = () => {
-    let mode = group === 'A'
-      ? (showHint && showAnswer ? "Both" : showAnswer ? "Logic" : "Hint")
-      : `Manual: ${inputText.replace(/\|/g, ';')}`;
+    let modeText = group === 'A'
+      ? (showHint && showAnswer ? "AI-Logic" : showAnswer ? "AI-Logic" : "AI-Hint")
+      : "Manual";
+    
+    let firstAns = group === 'A' ? modeText : (currentTask === 1 ? keywords.join(', ') : inputText);
 
-    setResults(prev => [...prev, { mode }]);
+    setInitialAnswer(firstAns);
     setPhase('update');
     setInputText('');
-    setShowHint(false);
-    setShowAnswer(false);
-
+    setKeywords([]); 
+    
     setTimer(0);
     const start = Date.now();
     timerRef.current = setInterval(() => {
@@ -93,23 +136,29 @@ export default function ExperimentApp() {
 
   const handleUpdateSubmit = (choiceValue = null) => {
     clearInterval(timerRef.current);
-    if (choiceValue) setInputText(choiceValue);
+    const finalUpdateAnswer = choiceValue || inputText;
+    
+    setResults(prev => [...prev, { 
+      mode: group === 'A' ? (showHint && showAnswer ? "Logic" : showAnswer ? "Logic" : "Hint") : "Manual",
+      reliance: relianceScore,
+      initial: initialAnswer,
+      update: finalUpdateAnswer,
+      time: timer
+    }]);
+
     setPhase('confidence');
   };
 
   const handleConfidenceSubmit = (confScore) => {
     const currentResults = [...results];
     const currentIndex = currentResults.length - 1;
-
-    currentResults[currentIndex] = {
-      ...currentResults[currentIndex],
-      time: timer,
-      answer: (inputText || "").replace(/\|/g, ';'),
-      confidence: confScore
-    };
+    currentResults[currentIndex].confidence = confScore;
 
     setResults(currentResults);
     setInputText('');
+    setRelianceScore(0);
+    setShowHint(false);
+    setShowAnswer(false);
 
     if (currentTask < experimentData.length - 1) {
       setCurrentTask(currentTask + 1);
@@ -120,192 +169,149 @@ export default function ExperimentApp() {
     }
   };
 
-  const sendToGoogle = (finalData) => {
-    const formID = "1FAIpQLSdxHo29TnDPuTUW-_Ah8JJp10Gux2a5Tp_uFuzf74q3jNBRNw";
-    const fields = {
-      pID: "entry.525021555",
-      t1: { m: "entry.651143595", t: "entry.312742935", a: "entry.719538924", c: "entry.1641818878" },
-      t2: { m: "entry.963073410", t: "entry.772162158", a: "entry.1009011268", c: "entry.1726924177" },
-      t3: { m: "entry.1995615539", t: "entry.1409764106", a: "entry.1004505213", c: "entry.731737617" },
-      t4: { m: "entry.1026101836", t: "entry.71733623", a: "entry.767400298", c: "entry.1169791376" }
-    };
-
-    const finalID = `Grp-${group}-${pIDValue}`;
-    let url = `https://docs.google.com/forms/d/e/${formID}/formResponse?${fields.pID}=${finalID}`;
-
-    finalData.forEach((task, i) => {
-      const key = `t${i + 1}`;
-      url += `&${fields[key].m}=${encodeURIComponent(task.mode)}` +
-             `&${fields[key].t}=${encodeURIComponent(task.time)}` +
-             `&${fields[key].a}=${encodeURIComponent(task.answer)}` +
-             `&${fields[key].c}=${encodeURIComponent(task.confidence)}`;
-    });
-
-    const iframe = document.createElement('iframe');
-    iframe.title = "Data Submit";
-    iframe.src = url + "&submit=Submit";
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
-  };
-
-  if (step === 'landing') {
-    return (
-      <div style={layoutWrapper}>
-        <div style={{ ...cardStyle, textAlign: 'center' }}>
-          <h1 style={{ color: '#1a1a1a', marginBottom: '20px' }}>Cognitive Flexibility Study</h1>
-          <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
-            <button onClick={() => startExperiment('A')} style={startBtnStyle}>Group A</button>
-            <button onClick={() => startExperiment('B')} style={{ ...startBtnStyle, background: '#34495e' }}>Group B</button>
-          </div>
+  if (step === 'landing') return (
+    <div style={layoutWrapper}>
+      <div style={cardStyle}>
+        <h1 style={titleStyle}>The Impact of AI on Cognitive Flexibility</h1>
+        <p style={descriptionStyle}>
+          This research project examines how humans adapt to changing rules when assisted by automated logic. 
+          The study involves 4 logical tasks and takes approximately 10 minutes.
+        </p>
+        <div style={{display:'flex', gap:'20px', justifyContent:'center'}}>
+          <button onClick={() => startExperiment('A')} style={startBtnStyle}>Group A</button>
+          <button onClick={() => startExperiment('B')} style={{...startBtnStyle, background:'#34495e'}}>Group B</button>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (step === 'survey') {
-    const surveyUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfy5CIWCy5XN53CXhj3Rf64XaHmcFCe9ddeZKP5OST_GtNgIg/viewform?usp=pp_url&entry.1589615168=${pIDValue}&embedded=true`;
-    return (
-      <div style={layoutWrapper}>
-        <div style={cardStyle}>
-          <h2 style={{ marginTop: 0, color: '#2c3e50' }}>Pre-Task Assessment</h2>
-          <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
-            Please complete the AAIUS and Cognitive Flexibility scales below.
-            <strong> Your Participant ID ({pIDValue}) has been automatically entered.</strong>
-          </p>
-          <div style={{ width: '100%', height: '600px', overflow: 'hidden', borderRadius: '8px', border: '1px solid #eee' }}>
-            <iframe
-              title="AAIUS and CF Scales"
-              src={surveyUrl}
-              width="100%" height="600" frameBorder="0" marginHeight="0" marginWidth="0"
-            >Loading…</iframe>
-          </div>
-          <button onClick={() => setStep('consent')} style={mainBtnStyle}>
-            I have submitted the form & am ready to start →
-          </button>
+  if (step === 'survey') return (
+    <div style={layoutWrapper}>
+      <div style={cardStyle}>
+        <h2 style={{marginTop:0}}>Pre-Task Assessment</h2>
+        <div style={infoBox}>
+           📍 <strong>Your Participant ID:</strong> <span style={{color: '#e67e22'}}>{pIDValue}</span>
         </div>
+        <p style={{fontSize: '14px', marginBottom: '15px'}}>Please fill out this background survey. After submitting, click the button below.</p>
+        <iframe title="Survey" src={`https://docs.google.com/forms/d/e/1FAIpQLSfy5CIWCy5XN53CXhj3Rf64XaHmcFCe9ddeZKP5OST_GtNgIg/viewform?usp=pp_url&entry.1589615168=${pIDValue}&embedded=true`} width="100%" height="450" frameBorder="0"></iframe>
+        <button onClick={() => setStep('consent')} style={mainBtnStyle}>Survey Submitted → Continue</button>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (step === 'consent') {
-    return (
-      <div style={layoutWrapper}>
-        <div style={cardStyle}>
-          <h2 style={{ marginTop: 0 }}>Informed Consent Form</h2>
-          <div style={consentScrollBox}>
-            <p><strong>Project Title:</strong> AI Reliance & Cognitive Adaptation.</p>
-            <hr />
-            <p><strong>1. Purpose:</strong> Study investigating digital tools and problem-solving.</p>
-            <p><strong>2. Procedures:</strong> 4 logic tasks with rule changes. ~10 mins.</p>
-            <p><strong>3. Privacy:</strong> Data is fully anonymized.</p>
-            <p><strong>4. Voluntary:</strong> You may exit at any time.</p>
-            <hr />
-            <p><em>By clicking below, you voluntarily agree to participate.</em></p>
-          </div>
-          <button onClick={() => setStep('experiment')} style={mainBtnStyle}>I Consent & Start</button>
+  if (step === 'consent') return (
+    <div style={layoutWrapper}>
+      <div style={cardStyle}>
+        <h2 style={{marginTop:0}}>Informed Consent & Instructions</h2>
+        <div style={consentScrollBox}>
+          <strong>PURPOSE:</strong> Research on human-AI collaboration and cognitive adaptability.<br/><br/>
+          <strong>PROCEDURE:</strong> You will solve an initial problem, followed by a situation update where rules change. You must solve the update as quickly as possible.<br/><br/>
+          <strong>DATA & PRIVACY:</strong> All data is anonymous. We track response accuracy and time taken (latency). Your IP address is not recorded.<br/><br/>
+          <strong>RIGHT TO WITHDRAW:</strong> You may stop the study at any time by closing your browser tab.<br/><br/>
+          <strong>INSTRUCTIONS:</strong> Focus on accuracy for the first part. Focus on <strong>speed and accuracy</strong> for the second part (Situation Update).
         </div>
+        <button onClick={() => setStep('experiment')} style={mainBtnStyle}>I Consent & Start Experiment</button>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (step === 'finished') {
-    return (
-      <div style={layoutWrapper}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '60px', marginBottom: '20px' }}>✅</div>
-          <h1>Participation Recorded</h1>
-          <p>Thank you for your contribution to this study.</p>
-        </div>
-      </div>
-    );
-  }
+  if (step === 'finished') return (
+    <div style={layoutWrapper}><div style={cardStyle}><h1 style={{textAlign:'center'}}>✅ Study Complete</h1><p style={{textAlign:'center'}}>Your data has been securely submitted. Thank you for your participation.</p></div></div>
+  );
 
   const task = experimentData[currentTask];
-  const progress = ((currentTask + 1) / 4) * 100;
 
   return (
     <div style={layoutWrapper}>
       <div style={{ width: '100%', maxWidth: '700px' }}>
-        <div style={progressContainer}><div style={{ ...progressBar, width: `${progress}%` }} /></div>
         <div style={cardStyle}>
-          <span style={taskLabel}>Task {currentTask + 1} of 4 • {task.title}</span>
+          <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px'}}>
+            <span style={taskLabel}>TASK {currentTask + 1} / 4</span>
+            <span style={taskLabel}>{task.title}</span>
+          </div>
 
           {phase === 'initial' && (
-            <div style={{ marginTop: '15px' }}>
+            <div>
               <p style={questionText}>{task.initialQ}</p>
               {group === 'A' ? (
-                <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => setShowHint(true)} style={smallBtnStyle}>💡 Show AI Hint</button>
-                    <button onClick={() => setShowAnswer(true)} style={{ ...smallBtnStyle, background: '#f3f0ff', color: '#6741d9' }}>🤖 Show AI Answer</button>
+                <div style={{ marginTop: '20px' }}>
+                  <div style={{ display: 'flex', gap: '10px', marginBottom:'15px' }}>
+                    <button onClick={() => setShowHint(true)} style={smallBtnStyle}>💡 Request AI Hint</button>
+                    <button onClick={() => setShowAnswer(true)} style={{ ...smallBtnStyle, background: '#f3f0ff', color: '#6741d9' }}>🤖 Request AI Logic</button>
                   </div>
-                  {showHint && (
-                    <div style={aiBoxStyle}>
-                      <strong>💡 AI Hint:</strong>
-                      <p style={{ margin: '5px 0 0 0' }}>{task.aiStepByStep[0]}</p>
-                    </div>
-                  )}
-                  {showAnswer && (
-                    <div style={{ ...aiBoxStyle, borderColor: '#6741d9', background: '#f8f7ff' }}>
-                      <strong>🤖 AI Answer & Logic:</strong>
-                      <div style={{ margin: '5px 0 0 0' }}>
-                        {task.aiStepByStep.slice(1).map((s, i) => (
-                          <p key={i} style={{ marginBottom: '5px' }}>{s}</p>
+                  {showHint && <div style={aiBoxStyle}><strong>AI Hint:</strong> {task.aiStepByStep[0]}</div>}
+                  {showAnswer && <div style={aiBoxStyle}><strong>AI Logic:</strong> {task.aiStepByStep.slice(1).join(' ')}</div>}
+                  
+                  {(showHint || showAnswer) && (
+                    <div style={relianceBox}>
+                      <p style={{fontWeight:'bold', marginBottom:'10px'}}>How much did you rely on the AI's logic for this answer?</p>
+                      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <div key={n} style={{textAlign:'center'}}>
+                            <button onClick={() => setRelianceScore(n)} style={{...confBtn, background: relianceScore === n ? '#3498db' : 'white', color: relianceScore === n ? 'white' : '#3498db'}}>{n}</button>
+                            <div style={{fontSize:'9px', marginTop:'4px'}}>{n===1 ? 'None' : n===5 ? 'Fully' : ''}</div>
+                          </div>
                         ))}
                       </div>
+                      <button onClick={goToUpdate} disabled={relianceScore === 0} style={{...mainBtnStyle, marginTop: '20px'}}>Unlock Situation Update</button>
                     </div>
                   )}
-                  <button onClick={goToUpdate} disabled={!(showHint || showAnswer)} style={mainBtnStyle}>Proceed to Challenge</button>
                 </div>
               ) : (
-                <>
-                  <textarea style={textAreaStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Provide your response..." />
-                  <button onClick={goToUpdate} disabled={!inputText.trim()} style={mainBtnStyle}>Submit & See Update</button>
-                </>
+                <div style={{marginTop:'15px'}}>
+                   {currentTask === 1 && (
+                    <div style={{display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'10px'}}>
+                      {keywords.map((kw, i) => <span key={i} style={{...taskLabel, background:'#3498db', color:'white', padding:'4px 10px', borderRadius:'15px'}}>{kw}</span>)}
+                    </div>
+                  )}
+                  {currentTask === 2 ? (
+                    <input type="number" style={inputNumberStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="0" />
+                  ) : (
+                    <textarea 
+                      style={textAreaStyle} 
+                      value={inputText} 
+                      onKeyUp={handleKeyUp}
+                      onChange={(e) => setInputText(e.target.value)} 
+                      placeholder={currentTask === 1 ? "Type keyword and press SPACE..." : "Type your logical solution here..."} 
+                    />
+                  )}
+                  <button onClick={goToUpdate} disabled={currentTask === 1 ? keywords.length < 1 : !inputText.trim()} style={mainBtnStyle}>Submit Initial Solution</button>
+                </div>
               )}
             </div>
           )}
 
           {phase === 'update' && (
             <div style={{ marginTop: '20px' }}>
-              <div style={{ ...cardStyle, background: '#fff9f4', borderColor: '#ff922b', boxShadow: 'none' }}>
-                <p style={{ fontSize: '18px', fontWeight: '600', color: '#d9480f' }}>{task.updateQ}</p>
+              <div style={updateContainer}>
+                <h4 style={{color:'#d9480f', margin:'0 0 10px 0'}}>⚠️ SITUATION UPDATE</h4>
+                <p style={{ fontWeight: '500', fontSize: '17px' }}>{task.updateQ}</p>
                 {task.options ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
                     {task.options.map((opt, i) => <button key={i} onClick={() => handleUpdateSubmit(opt)} style={optionBtnStyle}>{opt}</button>)}
                   </div>
                 ) : (
                   <>
-                    {task.id === 3 ? (
-                      <input 
-                        type="number" 
-                        style={{...textAreaStyle, height: '50px'}} 
-                        value={inputText} 
-                        onChange={(e) => setInputText(e.target.value)} 
-                        placeholder="Enter numeric value..." 
-                      />
-                    ) : (
-                      <textarea style={textAreaStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Your update response..." />
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '15px', alignItems: 'center' }}>
-                      <div style={{ color: '#ff922b', fontSize: '14px', fontWeight: '600' }}>⏱ Latency: {timer}s</div>
-                      <button onClick={() => handleUpdateSubmit()} disabled={!inputText.trim()} style={submitBtnStyle}>Submit Response</button>
-                    </div>
+                    {task.id === 3 ? <input type="number" style={inputNumberStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="0" /> : <textarea style={textAreaStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Your new solution..." />}
+                    <button onClick={() => handleUpdateSubmit()} disabled={!inputText.trim()} style={submitBtnStyle}>Submit Final Answer</button>
                   </>
                 )}
+                <div style={timerDisplay}>⏱ Latency Recorded: {timer}s</div>
               </div>
             </div>
           )}
 
           {phase === 'confidence' && (
             <div style={{ textAlign: 'center', marginTop: '25px' }}>
-              <h3 style={{ fontSize: '18px', color: '#2c3e50', marginBottom: '5px' }}>Confidence Rating</h3>
-              <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
-                How certain are you that your answer to the <strong>Situation Update</strong> is correct?
-                (1 = Not at all, 5 = Completely certain)
-              </p>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '15px' }}>
-                {[1, 2, 3, 4, 5].map(n => <button key={n} onClick={() => handleConfidenceSubmit(n)} style={confBtn}>{n}</button>)}
+              <h3 style={{marginBottom:'5px'}}>Confidence Rating</h3>
+              <p style={{fontSize:'14px', color:'#666'}}>How certain are you that your <strong>Update Answer</strong> is correct?</p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '15px' }}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <div key={n} style={{textAlign:'center'}}>
+                    <button onClick={() => handleConfidenceSubmit(n)} style={confBtn}>{n}</button>
+                    <div style={{fontSize:'9px', marginTop:'4px'}}>{n===1 ? 'Low' : n===5 ? 'High' : ''}</div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -315,18 +321,23 @@ export default function ExperimentApp() {
   );
 }
 
-const layoutWrapper = { backgroundColor: '#fdfdfd', minHeight: '100vh', fontFamily: 'Inter, system-ui', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', boxSizing: 'border-box' };
-const cardStyle = { background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', border: '1px solid #eaeaea', width: '100%', maxWidth: '700px', boxSizing: 'border-box' };
-const taskLabel = { textTransform: 'uppercase', fontSize: '12px', fontWeight: 'bold', color: '#3498db', letterSpacing: '1px' };
-const questionText = { fontSize: '18px', lineHeight: '1.6', color: '#2c3e50', marginTop: '15px' };
-const startBtnStyle = { padding: '15px 40px', cursor: 'pointer', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold' };
-const mainBtnStyle = { width: '100%', marginTop: '25px', padding: '15px', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' };
-const smallBtnStyle = { flex: 1, padding: '10px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', background: '#e7f5ff', color: '#1971c2' };
-const aiBoxStyle = { marginTop: '15px', background: '#f0f7ff', padding: '15px', borderRadius: '12px', border: '1px dashed #3498db', fontSize: '14px' };
-const textAreaStyle = { width: '100%', height: '100px', marginTop: '15px', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '16px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
-const progressContainer = { height: '6px', background: '#eee', borderRadius: '10px', marginBottom: '40px', overflow: 'hidden', width: '100%' };
-const progressBar = { height: '100%', background: '#3498db', transition: 'width 0.5s ease' };
-const submitBtnStyle = { padding: '12px 30px', background: '#27ae60', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold' };
-const confBtn = { width: '50px', height: '50px', borderRadius: '50%', border: '2px solid #3498db', cursor: 'pointer', background: 'white', color: '#3498db', fontWeight: 'bold', fontSize: '16px' };
-const optionBtnStyle = { padding: '15px', textAlign: 'left', background: 'white', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', fontSize: '15px' };
-const consentScrollBox = { height: '200px', overflowY: 'auto', background: '#fcfcfc', padding: '15px', border: '1px solid #eee', borderRadius: '8px', fontSize: '14px', margin: '15px 0', lineHeight: '1.5' };
+const layoutWrapper = { backgroundColor: '#f4f7f6', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', fontFamily: '"Segoe UI", Tahoma, sans-serif' };
+const cardStyle = { background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', width: '100%', maxWidth: '650px', boxSizing: 'border-box' };
+const titleStyle = { textAlign: 'center', color: '#2c3e50', fontSize: '24px', marginBottom: '10px' };
+const descriptionStyle = { textAlign: 'center', color: '#7f8c8d', fontSize: '15px', lineHeight: '1.5', marginBottom: '30px' };
+const infoBox = { background: '#e8f4fd', padding: '12px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', fontSize: '15px' };
+const taskLabel = { fontSize: '11px', fontWeight: 'bold', color: '#3498db', letterSpacing: '1px' };
+const questionText = { fontSize: '18px', color: '#34495e', lineHeight: '1.6' };
+const startBtnStyle = { padding: '14px 40px', cursor: 'pointer', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '16px' };
+const mainBtnStyle = { width: '100%', padding: '15px', background: '#3498db', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' };
+const smallBtnStyle = { flex: 1, padding: '10px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' };
+const aiBoxStyle = { background: '#f8f9fa', padding: '15px', borderRadius: '10px', borderLeft: '4px solid #3498db', marginTop: '15px', fontSize: '14px' };
+const textAreaStyle = { width: '100%', height: '100px', marginTop: '10px', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '16px', boxSizing: 'border-box', fontFamily: 'inherit' };
+const inputNumberStyle = { width: '100%', height: '54px', marginTop: '10px', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '16px', boxSizing: 'border-box', fontFamily: 'inherit' };
+const submitBtnStyle = { width: '100%', padding: '15px', background: '#27ae60', color: '#fff', border: 'none', borderRadius: '8px', marginTop: '15px', fontWeight: 'bold', cursor: 'pointer' };
+const confBtn = { width: '50px', height: '50px', borderRadius: '10px', border: '1.5px solid #3498db', cursor: 'pointer', background: 'white', color: '#3498db', fontWeight: 'bold', fontSize: '16px' };
+const optionBtnStyle = { padding: '15px', textAlign: 'left', background: '#fdfdfd', border: '1px solid #eee', borderRadius: '8px', cursor: 'pointer', transition: '0.2s' };
+const timerDisplay = { marginTop: '15px', textAlign: 'right', fontWeight: 'bold', color: '#e67e22', fontSize: '13px' };
+const relianceBox = { padding: '20px', background: '#fcfcfc', border: '1px solid #eee', borderRadius: '12px', marginTop: '20px', textAlign: 'center' };
+const consentScrollBox = { height: '180px', overflowY: 'auto', border: '1px solid #eee', padding: '15px', margin: '20px 0', fontSize: '13px', color: '#444', lineHeight: '1.6', background: '#fafafa' };
+const updateContainer = { padding: '20px', border: '2px solid #ff922b', borderRadius: '12px', background: '#fff9f4' };
