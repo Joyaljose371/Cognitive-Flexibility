@@ -1,5 +1,8 @@
 import React, { useState, useRef, useMemo } from 'react';
 
+/**
+ * EXPERIMENT CONTENT DATA
+ */
 const experimentData = [
   {
     id: 1,
@@ -12,23 +15,23 @@ const experimentData = [
     ],
     updateQ: "SITUATION UPDATE: The train must now slow down to 30 km/h for the last 5 kilometers of that 10 km trip. Recalculate the total time for the full 10 km."
   },
-  {
+ {
     id: 2,
     title: "Perspective Switching",
-    initialQ: "The University is using AI cameras to track 'Study Habits' to improve library efficiency. Provide 3 keywords that justify this from the University's perspective.",
+    initialQ: "The University uses AI cameras for 'Library Efficiency'. Provide 3 keywords that justify this from the University's perspective.",
     aiStepByStep: [
-      "💡 Hint: Think about how an administrator uses data to manage space and resources.",
-      "🤖 Logic: Use terms like 'Resource Optimization', 'Operational Efficiency', and 'Analytics'.",
-      "Keywords: Optimization, Data-driven, Efficiency"
+      "💡 Hint: Focus on space management and resource utilization.",
+      "🤖 Logic: Use terms like 'Optimization', 'Resource-Mapping', and 'Utilization'.",
+      "Keywords: Optimization, Analytics, Efficiency"
     ],
-    updateQ: "UPDATE: Due to privacy concerns, cameras are now only for 'Security' (theft prevention). Which choice best represents a Student's balanced view?",
+    updateQ: "SITUATION UPDATE: Privacy laws now ban identifying individuals. Which policy change allows the University to keep collecting data while strictly following the 'No-Identification' rule?",
     options: [
-      "I support theft prevention but demand privacy protection.",
-      "The university should use cameras to track my study habits.",
-      "Cameras are unnecessary for security.",
-      "I prefer the efficiency tracking over security."
+      "Switch to 'Edge-Computing' sensors that only output total headcounts",
+      "Use 'Enhanced-ID' to blur faces only after the data is stored",
+      "Implement 'High-Precision' tracking to ensure seat optimization",
+      "Apply 'Behavioral-Sync' to match student IDs with movement patterns"
     ]
-  },
+},
   {
     id: 3,
     title: "Logic Adaptation",
@@ -40,36 +43,65 @@ const experimentData = [
     ],
     updateQ: "SITUATION UPDATE: You find a raft to tow the grain. The grain no longer counts as your 'one item' limit. You can carry one animal while towing the grain. Recalculate the minimum crossings."
   },
-  {
+{
     id: 4,
     title: "Financial Pivot",
-    initialQ: "₹1,00,000 is moved from a bank account earning 4% annual interest to a digital wallet earning 0%. How much potential profit is lost in one year?",
+    initialQ: "You have ₹1,00,000. A Bank account pays 4% interest (₹4,000), while a Digital Wallet pays 0%. How much potential profit is lost if you use the Wallet?",
     aiStepByStep: [
-      "💡 Hint: Lost profit is the interest you would have earned in the bank.",
-      "🤖 Logic: 4% of 1,00,000 = ₹4,000. The wallet pays 0 interest.",
+      "💡 Hint: The lost profit is simply the 4% interest the bank would have paid.",
+      "🤖 Logic: 4% of 1,00,000 = ₹4,000.",
       "Result: ₹4,000 lost profit."
     ],
-    updateQ: "SITUATION UPDATE: The digital wallet now offers a special cashback of ₹500 for every ₹10,000 held in it. Which is now more profitable: the Bank (4% interest) or the Wallet (Cashback)?",
-    options: ["Bank (4% Interest)", "Digital Wallet (Cashback)"]
-  }
+    updateQ: "SITUATION UPDATE: The Digital Wallet now offers a flat ₹10,000 'Mega Bonus'. However, this is only for new deposits of ₹1,50,000 or more. Since you only have ₹1,00,000, which is now more profitable?",
+    options: [
+      "Bank (Fixed ₹4,000 Profit)",
+      "Digital Wallet (₹10,000 Mega Bonus)"
+    ]
+}
 ];
 
 export default function ExperimentApp() {
+  // --- STATE MANAGEMENT ---
   const [step, setStep] = useState('landing');
   const [group, setGroup] = useState(null);
-  const [currentTask, setCurrentTask] = useState(0);
-  const [phase, setPhase] = useState('initial');
-  const [results, setResults] = useState([]);
-  const [inputText, setInputText] = useState('');
-  const [initialAnswer, setInitialAnswer] = useState('');
-  const [keywords, setKeywords] = useState([]); 
-  const [timer, setTimer] = useState(0);
-  const [showHint, setShowHint] = useState(false);
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [relianceScore, setRelianceScore] = useState(0);
-  const timerRef = useRef(null);
+  const [currentTask, setCurrentTask] = useState(0); 
+  const [phase, setPhase] = useState('initial');    
+  const [results, setResults] = useState([]);       
+  const [inputText, setInputText] = useState('');   
+  const [initialAnswer, setInitialAnswer] = useState(''); 
+  const [keywords, setKeywords] = useState([]);     
+  const [timer, setTimer] = useState(0);            
+  const [showHint, setShowHint] = useState(false);  
+  const [showAnswer, setShowAnswer] = useState(false); 
+  const [showRating, setShowRating] = useState(false); 
+  const [relianceScore, setRelianceScore] = useState(0); 
+  const timerRef = useRef(null);                    
 
   const pIDValue = useMemo(() => `User-${Math.floor(Math.random() * 90000) + 10000}`, []);
+
+  // --- FULLSCREEN FUNCTIONS ---
+  const enterFullScreen = () => {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) elem.requestFullscreen();
+    else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+    else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+  };
+
+  const exitFullScreen = () => {
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  };
+
+  // --- HELPER FUNCTIONS ---
+
+  const handleAIRequest = (type) => {
+    if (type === 'hint') setShowHint(true);
+    if (type === 'logic') setShowAnswer(true);
+    
+    setTimeout(() => {
+      setShowRating(true);
+    }, 2000); // 2 second delay
+  };
 
   const handleKeyUp = (e) => {
     if (currentTask === 1 && (e.key === ' ' || e.key === ',')) {
@@ -113,6 +145,7 @@ export default function ExperimentApp() {
   const startExperiment = (g) => {
     setGroup(g);
     setStep('survey');
+    enterFullScreen(); // Trigger Fullscreen
   };
 
   const goToUpdate = () => {
@@ -159,6 +192,7 @@ export default function ExperimentApp() {
     setRelianceScore(0);
     setShowHint(false);
     setShowAnswer(false);
+    setShowRating(false);
 
     if (currentTask < experimentData.length - 1) {
       setCurrentTask(currentTask + 1);
@@ -166,8 +200,11 @@ export default function ExperimentApp() {
     } else {
       sendToGoogle(currentResults);
       setStep('finished');
+      exitFullScreen(); // Exit Fullscreen at final submit
     }
   };
+
+  // --- COMPONENT VIEWS ---
 
   if (step === 'landing') return (
     <div style={layoutWrapper}>
@@ -190,7 +227,7 @@ export default function ExperimentApp() {
       <div style={cardStyle}>
         <h2 style={{marginTop:0}}>Pre-Task Assessment</h2>
         <div style={infoBox}>
-           📍 <strong>Your Participant ID:</strong> <span style={{color: '#e67e22'}}>{pIDValue}</span>
+            📍 <strong>Your Participant ID:</strong> <span style={{color: '#e67e22'}}>{pIDValue}</span>
         </div>
         <p style={{fontSize: '14px', marginBottom: '15px'}}>Please fill out this background survey. After submitting, click the button below.</p>
         <iframe title="Survey" src={`https://docs.google.com/forms/d/e/1FAIpQLSfy5CIWCy5XN53CXhj3Rf64XaHmcFCe9ddeZKP5OST_GtNgIg/viewform?usp=pp_url&entry.1589615168=${pIDValue}&embedded=true`} width="100%" height="450" frameBorder="0"></iframe>
@@ -216,7 +253,15 @@ export default function ExperimentApp() {
   );
 
   if (step === 'finished') return (
-    <div style={layoutWrapper}><div style={cardStyle}><h1 style={{textAlign:'center'}}>✅ Study Complete</h1><p style={{textAlign:'center'}}>Your data has been securely submitted. Thank you for your participation.</p></div></div>
+    <div style={layoutWrapper}>
+      <div style={cardStyle}>
+        <h1 style={{textAlign:'center'}}>✅ Study Complete</h1>
+        <div style={{...infoBox, background: '#f8f9fa', border: '1px solid #eee', margin: '20px 0'}}>
+            <strong>Your Participant ID:</strong> <span style={{color: '#e67e22'}}>{pIDValue}</span>
+        </div>
+        <p style={{textAlign:'center'}}>Your data has been securely submitted. Thank you for your participation.</p>
+      </div>
+    </div>
   );
 
   const task = experimentData[currentTask];
@@ -236,13 +281,13 @@ export default function ExperimentApp() {
               {group === 'A' ? (
                 <div style={{ marginTop: '20px' }}>
                   <div style={{ display: 'flex', gap: '10px', marginBottom:'15px' }}>
-                    <button onClick={() => setShowHint(true)} style={smallBtnStyle}>💡 Request AI Hint</button>
-                    <button onClick={() => setShowAnswer(true)} style={{ ...smallBtnStyle, background: '#f3f0ff', color: '#6741d9' }}>🤖 Request AI Logic</button>
+                    <button onClick={() => handleAIRequest('hint')} style={smallBtnStyle}>💡 Request AI Hint</button>
+                    <button onClick={() => handleAIRequest('logic')} style={{ ...smallBtnStyle, background: '#f3f0ff', color: '#6741d9' }}>🤖 Request AI Logic</button>
                   </div>
                   {showHint && <div style={aiBoxStyle}><strong>AI Hint:</strong> {task.aiStepByStep[0]}</div>}
                   {showAnswer && <div style={aiBoxStyle}><strong>AI Logic:</strong> {task.aiStepByStep.slice(1).join(' ')}</div>}
                   
-                  {(showHint || showAnswer) && (
+                  {showRating && (
                     <div style={relianceBox}>
                       <p style={{fontWeight:'bold', marginBottom:'10px'}}>How much did you rely on the AI's logic for this answer?</p>
                       <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
@@ -321,6 +366,7 @@ export default function ExperimentApp() {
   );
 }
 
+// --- CSS-IN-JS STYLING OBJECTS ---
 const layoutWrapper = { backgroundColor: '#f4f7f6', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', fontFamily: '"Segoe UI", Tahoma, sans-serif' };
 const cardStyle = { background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', width: '100%', maxWidth: '650px', boxSizing: 'border-box' };
 const titleStyle = { textAlign: 'center', color: '#2c3e50', fontSize: '24px', marginBottom: '10px' };
