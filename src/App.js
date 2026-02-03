@@ -104,7 +104,6 @@ export default function ExperimentApp() {
   };
 
   const handleKeyUp = (e) => {
-    // currentTask index 1 is Perspective Switching
     if (currentTask === 1 && (e.key === ' ' || e.key === ',')) {
       const word = inputText.trim().replace(',', '');
       if (word.length > 0 && !keywords.includes(word)) {
@@ -308,7 +307,6 @@ export default function ExperimentApp() {
                       {keywords.map((kw, i) => <span key={i} style={{...taskLabel, background:'#3498db', color:'white', padding:'4px 10px', borderRadius:'15px'}}>{kw}</span>)}
                     </div>
                   )}
-                  {/* Fixed logic: currentTask index 0 and 2 use textareas, index 3 uses number. Task index 1 (Perspective) uses textarea with handleKeyUp */}
                   {currentTask === 0 || currentTask === 1 ? (
                     <textarea 
                       style={textAreaStyle} 
@@ -320,7 +318,13 @@ export default function ExperimentApp() {
                   ) : (
                     <input type="number" style={inputNumberStyle} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="0" />
                   )}
-                  <button onClick={goToUpdate} disabled={currentTask === 1 ? keywords.length < 1 : !inputText.trim()} style={mainBtnStyle}>Submit Initial Solution</button>
+                  <button 
+                    onClick={goToUpdate} 
+                    disabled={!inputText.trim() && keywords.length === 0} 
+                    style={mainBtnStyle}
+                  >
+                    Submit Initial Solution
+                  </button>
                 </div>
               )}
             </div>
